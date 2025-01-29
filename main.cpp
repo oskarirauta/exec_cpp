@@ -4,7 +4,7 @@
 int main(int argc, char** argv) {
 
 	std::cout << "executing /bin/ls" << std::endl;
-	exec e1 = { 
+	exec e1 = {
 		.cmd = "/bin/ls",
 		.fork = true,
 		.hooks = {
@@ -24,8 +24,6 @@ int main(int argc, char** argv) {
 		.fork = true, .wait = true
 	};
 	e1.perform();
-
-	
 
 	std::cout << "program ends, return value of previous exec: " << e1.status.code() << std::endl;
 

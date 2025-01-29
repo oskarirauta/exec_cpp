@@ -39,4 +39,7 @@ struct exec {
 		exec& operator =(const exec& other);
 
 		int perform();
+
+		static std::map<std::string, std::string> environ();
+
 };

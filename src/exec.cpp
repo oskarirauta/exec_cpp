@@ -9,14 +9,37 @@
 
 extern char **environ;
 
-static std::vector<std::string> parse_environ() {
+#include <iostream>
 
-	if ( environ == nullptr ) return {};
-	std::vector<std::string> ret;
+static std::string to_upper(const std::string& str) {
 
-	char** env = environ;
-	for ( ;*env; ++env )
-		ret.push_back(std::string(*env));
+	std::string _str(str);
+
+        for ( auto& ch : _str )
+                if ( std::islower(ch))
+                        ch &= ~32;
+        return _str;
+}
+
+std::map<std::string, std::string> exec::environ() {
+
+	if ( ::environ == nullptr )
+		return {};
+
+	std::map<std::string, std::string> ret;
+
+	char** env = ::environ;
+
+	for ( ; *env; ++env ) {
+
+		std::string value(*env);
+		if ( auto pos = value.find('='); pos != std::string::npos ) {
+			std::string key = value.substr(0, pos);
+			value.erase(0, pos + 1);
+			if ( !key.empty())
+				ret.emplace(key, value);
+		}
+	}
 
 	return ret;
 }
@@ -58,23 +81,32 @@ int exec::perform() {
 	exec_args.push_back(nullptr);
 
 	std::vector<std::string> env_strings;
-	std::vector<std::string> inherited_env;
 	std::vector<const char*> env_args;
 
 	std::transform(this -> env.begin(), this -> env.end(), std::back_inserter(env_strings),
 			[](const std::pair<std::string, std::string>& p) { return !p.first.empty() && !p.second.empty() ? ( p.first + "=" + p.second ) : ""; });
 
+	if ( this -> copy_env ) {
+
+		std::map<std::string, std::string> current_env = exec::environ();
+		std::map<std::string, std::string> env_copy = this -> env;
+
+		std::transform(current_env.begin(), current_env.end(), std::back_inserter(env_strings),
+			[&env_copy](const std::pair<std::string, std::string>& p) {
+
+			if ( std::find_if(env_copy.begin(), env_copy.end(),
+				[&p](const std::pair<std::string, std::string>& e) {
+					return to_upper(p.first) == to_upper(e.first);
+				}) == env_copy.end() && !p.first.empty() && !p.second.empty())
+				return p.first + "=" + p.second;
+			else return std::string("");
+		});
+	}
+
 	env_strings.erase(std::remove_if(env_strings.begin(), env_strings.end(),
 					[](const std::string& s) { return s.empty(); }), env_strings.end());
 
-	if ( this -> copy_env || !env_strings.empty()) {
-
-		if ( this -> copy_env ) {
-
-			inherited_env = parse_environ();
-			std::transform(inherited_env.begin(), inherited_env.end(), std::back_inserter(env_args),
-					[](const std::string& s) { return s.c_str(); });
-		}
+	if ( !env_strings.empty()) {
 
 		std::transform(env_strings.begin(), env_strings.end(), std::back_inserter(env_args),
 				[](const std::string& s) { return s.c_str(); });
